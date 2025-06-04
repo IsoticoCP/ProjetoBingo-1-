@@ -1,20 +1,30 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList; 
 
 public class BingoClient extends JFrame {
     private JTextField nameField;
-    private JLabel nameLabel;
+    private JLabel nameLabel; 
     private JButton readyButton, lineButton, bingoButton;
     private JLabel statusLabel, cardIdLabel;
     private JPanel cardPanel, drawnNumbersPanel;
     private JButton[] cardButtons = new JButton[25];
-    private String cardId;
     private java.util.List<JLabel> drawnNumberLabels = new ArrayList<>();
+
     private JPanel topPanel;
     private JPanel namePanel;
+
+    
+    private Socket socket;
+    private PrintWriter out; 
+    private BufferedReader in; 
+    private static final String SERVER_ADDRESS = "localhost"; 
+    private static final int SERVER_PORT = 2025; 
 
     public BingoClient() {
         setTitle("Cliente Bingo ESTGA");
@@ -23,24 +33,22 @@ public class BingoClient extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // Top panel with name and ID
+        
+        
         topPanel = new JPanel(new BorderLayout());
-
         namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         nameField = new JTextField(15);
-        namePanel.add(new JLabel("Name: "));
+        namePanel.add(new JLabel("Nome: "));
         namePanel.add(nameField);
         topPanel.add(namePanel, BorderLayout.WEST);
 
-        cardId = UUID.randomUUID().toString().substring(0, 8);
-        cardIdLabel = new JLabel("Card ID: " + cardId);
+        cardIdLabel = new JLabel("ID Cartão: (a aguardar do servidor)");
         JPanel idPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         idPanel.add(cardIdLabel);
         topPanel.add(idPanel, BorderLayout.EAST);
-
         add(topPanel, BorderLayout.NORTH);
 
-        // Card panel
+        
         cardPanel = new JPanel(new GridLayout(5, 5, 5, 5));
         for (int i = 0; i < 25; i++) {
             JButton cell = new JButton("--");
@@ -51,35 +59,33 @@ public class BingoClient extends JFrame {
         }
         add(cardPanel, BorderLayout.CENTER);
 
-        // Bottom panel with game buttons and status
+        
         JPanel bottomPanel = new JPanel(new BorderLayout());
-
         JPanel buttonsPanel = new JPanel();
         readyButton = new JButton("Pronto para iniciar");
-        lineButton = new JButton("Linha");
-        bingoButton = new JButton("Bingo");
+        lineButton = new JButton("Linha!");
+        bingoButton = new JButton("Bingo!");
         lineButton.setEnabled(false);
         bingoButton.setEnabled(false);
         buttonsPanel.add(readyButton);
         buttonsPanel.add(lineButton);
         buttonsPanel.add(bingoButton);
 
-        statusLabel = new JLabel("Status: Waiting for login...");
+        statusLabel = new JLabel("Status: Introduza o nome e clique 'Pronto para iniciar'.");
         statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
         bottomPanel.add(buttonsPanel, BorderLayout.NORTH);
         bottomPanel.add(statusLabel, BorderLayout.SOUTH);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Panel for drawn numbers
+        
         drawnNumbersPanel = new JPanel();
         drawnNumbersPanel.setLayout(new BoxLayout(drawnNumbersPanel, BoxLayout.Y_AXIS));
-        drawnNumbersPanel.setBorder(BorderFactory.createTitledBorder("Drawn Numbers"));
+        drawnNumbersPanel.setBorder(BorderFactory.createTitledBorder("Números Sorteados"));
         JScrollPane scrollPane = new JScrollPane(drawnNumbersPanel);
         scrollPane.setPreferredSize(new Dimension(150, 0));
         add(scrollPane, BorderLayout.EAST);
 
-        // Enable "Ready" button only if name is filled
+        
         nameField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { validateName(); }
             public void removeUpdate(javax.swing.event.DocumentEvent e) { validateName(); }
@@ -88,88 +94,98 @@ public class BingoClient extends JFrame {
                 readyButton.setEnabled(!nameField.getText().trim().isEmpty());
             }
         });
-        readyButton.setEnabled(false);
+        readyButton.setEnabled(false); 
 
+        
+
+        
         readyButton.addActionListener(e -> {
-            readyButton.setVisible(false);
-            generateCard();
-            statusLabel.setText("Status: Waiting for other players...");
-            lineButton.setEnabled(true);
-            bingoButton.setEnabled(true);
-            replaceNameField();
-            simulateDrawnNumbers();
+            String playerName = nameField.getText().trim();
+            if (playerName.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Por favor, introduza o seu nome.", "Nome em Falta", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            try {
+                
+                this.socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+                
+                this.out = new PrintWriter(this.socket.getOutputStream(), true);
+                this.in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+
+                statusLabel.setText("Status: Ligado ao servidor!");
+                System.out.println("Cliente: Ligado ao servidor " + SERVER_ADDRESS + ":" + SERVER_PORT);
+
+                
+                readyButton.setEnabled(false);
+                nameField.setEditable(false);
+                replaceNameFieldWithNameLabel(playerName); 
+
+                
+
+                
+                out.println(playerName); 
+                System.out.println("Cliente: Nome '" + playerName + "' enviado para o servidor.");
+
+                statusLabel.setText("Status: Nome enviado. A aguardar cartão do servidor..."); 
+                
+
+                readyButton.setEnabled(false);
+                nameField.setEditable(false);
+                replaceNameFieldWithNameLabel(playerName);
+
+            } catch (IOException ex) {
+                statusLabel.setText("Status: Erro ao ligar ao servidor.");
+                JOptionPane.showMessageDialog(this,
+                    "Não foi possível ligar ao servidor (" + SERVER_ADDRESS + ":" + SERVER_PORT + ").\nVerifique se o servidor está em execução.\nDetalhe: " + ex.getMessage(),
+                    "Erro de Conexão",
+                    JOptionPane.ERROR_MESSAGE);
+            }
         });
 
-        lineButton.addActionListener(e -> statusLabel.setText("Claimed: Line"));
-        bingoButton.addActionListener(e -> statusLabel.setText("Claimed: Bingo"));
+        
+        lineButton.addActionListener(e -> {
+            if (this.socket != null && this.socket.isConnected() && !this.socket.isClosed()) {
+                statusLabel.setText("Ação 'Linha!' (ainda não implementada para enviar ao servidor)");
+            } else {
+                statusLabel.setText("Status: Não ligado ao servidor.");
+            }
+        });
+
+        bingoButton.addActionListener(e -> {
+            if (this.socket != null && this.socket.isConnected() && !this.socket.isClosed()) {
+                statusLabel.setText("Ação 'Bingo!' (ainda não implementada para enviar ao servidor)");
+            } else {
+                statusLabel.setText("Status: Não ligado ao servidor.");
+            }
+        });
 
         setVisible(true);
     }
 
-    private void replaceNameField() {
-        String name = nameField.getText();
+    
+    private void replaceNameFieldWithNameLabel(String playerName) {
         namePanel.removeAll();
-        nameLabel = new JLabel("Name: " + name);
+        nameLabel = new JLabel("Nome: " + playerName);
         namePanel.add(nameLabel);
         namePanel.revalidate();
         namePanel.repaint();
     }
 
-    private void generateCard() {
-        Set<Integer> numbers = new LinkedHashSet<>();
-        Random rand = new Random();
-        while (numbers.size() < 25) {
-            numbers.add(rand.nextInt(75) + 1);
-        }
-        Iterator<Integer> it = numbers.iterator();
-        for (int i = 0; i < 25; i++) {
-            int number = it.next();
-            JButton button = cardButtons[i];
-            button.setText(String.valueOf(number));
-            button.setEnabled(true);
-            button.setBackground(null);
-            button.addActionListener(new ActionListener() {
-                boolean marked = false;
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    if (!marked) {
-                        button.setBackground(Color.GREEN);
-                        marked = true;
-                    } else {
-                        button.setBackground(null);
-                        marked = false;
-                    }
-                }
-            });
-        }
-    }
-
-    private void simulateDrawnNumbers() {
-        new Thread(() -> {
-            try {
-                Random rand = new Random();
-                Set<Integer> numbers = new HashSet<>();
-                while (numbers.size() < 5) {
-                    int number = rand.nextInt(75) + 1;
-                    if (numbers.add(number)) {
-                        SwingUtilities.invokeLater(() -> addDrawnNumber(number));
-                        Thread.sleep(5000);
-                    }
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
+    
+    
     public void addDrawnNumber(int number) {
         JLabel newLabel = new JLabel(String.valueOf(number));
         newLabel.setFont(new Font("Arial", Font.BOLD, 18));
         for (JLabel label : drawnNumberLabels) {
             label.setFont(new Font("Arial", Font.PLAIN, 16));
         }
-        drawnNumberLabels.add(newLabel);
-        drawnNumbersPanel.add(newLabel);
+        drawnNumberLabels.add(0, newLabel);
+        
+        drawnNumbersPanel.removeAll();
+        for(JLabel lbl : drawnNumberLabels){
+            drawnNumbersPanel.add(lbl);
+        }
         drawnNumbersPanel.revalidate();
         drawnNumbersPanel.repaint();
     }
