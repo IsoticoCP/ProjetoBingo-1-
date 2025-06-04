@@ -82,6 +82,33 @@ public class ClientHandler extends Thread {
                 // para o bloco 'finally' e fechar a ligação. No próximo passo,
                 // vamos adicionar um loop aqui para manter a thread ativa para o jogo.
 
+
+
+                String linha;
+                while ((linha = reader.readLine()) != null) {
+                    if (linha.equalsIgnoreCase("CMD_BINGO")) {
+                        List<Integer> numerosSorteados = server.getNumerosSorteados();
+                        if (verificarBingo(cardNumbers, numerosSorteados)) {
+                            writer.println("MSG_BINGO_WINNER:" + playerName);
+                            server.pararJogo(playerName);
+                        } else {
+                            writer.println("MSG_BINGO_ANNOUNCEMENT:Bingo inválido!");
+                        }
+                    } else if (linha.equalsIgnoreCase("CMD_LINHA")) {
+                        List<Integer> numerosSorteados = server.getNumerosSorteados();
+                        if (
+                            verificarLinhaH(cardNumbers, numerosSorteados) ||
+                            verificarLinhaV(cardNumbers, numerosSorteados) ||
+                            verificarLinhaD(cardNumbers, numerosSorteados)
+                        ) {
+                            // Informa todos os jogadores quem fez a linha
+                            server.broadcastMessage("MSG_LINE_VALID:" + playerName, null);
+                        } else {
+                            writer.println("MSG_LINE_INVALID");
+                        }
+                    }
+                }
+
             } else {
                 System.out.println("Servidor: Recebido nome vazio ou nulo do cliente " + clientIp);
             }

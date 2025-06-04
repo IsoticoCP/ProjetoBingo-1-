@@ -3,12 +3,15 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 public class BingoServer {
     private static final int PORT = 2025;
     private static final int JOGADORES_MAX = 10;
+    private static final int JOGADORES_MIN = 2;
 
     private List<ClientHandler> numero_jogadores = new ArrayList<>();
+    private List<Integer> numerosSorteio = new ArrayList<>();
     
 
     public static void main(String[] args) {
@@ -33,6 +36,18 @@ public class BingoServer {
                         numero_jogadores.add(clientThread);
                         clientThread.start();
                         System.out.println("Número de jogadores ativos: " + numero_jogadores.size());
+                        
+                        if(numero_jogadores.size() >= JOGADORES_MIN) {
+                            System.out.println("O jogo vai começar.");
+                            new Thread(() -> {
+                                iniciarSorteio();
+                                NumeroSorteado();
+                            }).start();
+
+                        } else {
+                            System.out.println("Aguardando mais jogadores." + numero_jogadores.size());
+                        }
+
                     } else {
                         System.err.println("O servidor está cheio. Cliente " + clientSocket.getInetAddress().getHostAddress() + " rejeitado.");
                         try {
@@ -74,11 +89,32 @@ public class BingoServer {
             }
         }
     }
+
+    public void iniciarSorteio() {
+        numerosSorteio.clear();
+        for (int i= 1; i<= 99; i++) {
+            numerosSorteio.add(i);
+        }
+        Collections.shuffle(numerosSorteio);
+    }
+
+    public void NumeroSorteado(){
+        for (Integer numero : numerosSorteio){
+            broadcastMessage("Número sorteado: " + numero, null);
+            try{
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
+    public synchronized List<Integer> getNumerosSorteados() {
+        return new ArrayList<>(numerosSorteio);
+    }
+
+    public synchronized void pararJogo(String vencedor) {
+        broadcastMessage("MSG_BINGO_WINNER " + vencedor, null);
+    }
 }
-
-
-
-
-
-
-
