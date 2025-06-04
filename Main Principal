@@ -1,0 +1,7 @@
+public class TrabalhoPratico3_0 {
+  public static void main(String[] args) {
+    BingoClient bingoclient1 = new BingoClient();
+    BingoClient bingoclient2 = new BingoClient();
+    BingoSever bingoserver = new BingoServer();
+  }
+}
