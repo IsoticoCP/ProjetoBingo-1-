@@ -20,13 +20,23 @@ public class ClientHandler extends Thread {
     }
 
     
-    private List<Integer> gerarBingoCardNumbers() {
+    private List<Integer> gerarNumerosCartao() {
         List<Integer> numerosPossiveis = new ArrayList<>();
         for (int i = 1; i <= 99; i++) { 
             numerosPossiveis.add(i);
         }
         Collections.shuffle(numerosPossiveis); 
         return new ArrayList<>(numerosPossiveis.subList(0, 25));
+    }
+    private String formatarNumerosCartao(List<Integer> numbers) {
+    StringBuilder numbersString = new StringBuilder();
+    for (int i = 0; i < numbers.size(); i++) {
+        numbersString.append(numbers.get(i)); // Adiciona o número atual
+        if (i < numbers.size() - 1) {         // Se não for o último número da lista
+            numbersString.append(",");        // Adiciona uma vírgula como separador
+        }
+    }
+    return numbersString.toString(); // Converte o StringBuilder para uma String e retorna
     }
     
 
@@ -35,7 +45,8 @@ public class ClientHandler extends Thread {
         String clientIp = clientSocket.getInetAddress().getHostAddress();
         System.out.println("Thread para cliente " + clientIp + " iniciada.");
         
-        BufferedReader reader = null; 
+        BufferedReader reader = null;
+        // this.writer é inicializado dentro do try
 
         try {
             InputStreamReader streamReader = new InputStreamReader(clientSocket.getInputStream());
@@ -43,12 +54,33 @@ public class ClientHandler extends Thread {
             
             this.writer = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            this.playerName = reader.readLine();
+            this.playerName = reader.readLine(); // Lê o nome do jogador
 
             if (this.playerName != null && !this.playerName.isEmpty()) {
                 System.out.println("Servidor: Jogador '" + this.playerName + "' (" + clientIp + ") conectou-se.");
+
+                // --- INÍCIO DA NOVA LÓGICA: GERAR E ENVIAR CARTÃO ---
+                // 1. Gerar ID do Cartão
+                String cardId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+                // 2. Gerar Números do Cartão de Bingo (chama o método que já existe na classe)
+                List<Integer> cardNumbers = gerarNumerosCartao();
+
+                // 3. Formatar os números do cartão para enviar como String
+                String formattedCardNumbers = formatarNumerosCartao(cardNumbers);
+
+                // 4. Enviar ID do Cartão para o Cliente
+                this.writer.println("MSG_CARD_ID:" + cardId);
+
+                // 5. Enviar Números do Cartão para o Cliente
+                this.writer.println("MSG_CARD_NUMBERS:" + formattedCardNumbers);
                 
-                
+                System.out.println("Servidor: Cartão ID [" + cardId + "] e números enviados para o jogador '" + this.playerName + "'.");
+                // --- FIM DA NOVA LÓGICA ---
+
+                // NOTA: Por agora, depois de enviar o cartão, a thread ainda vai prosseguir
+                // para o bloco 'finally' e fechar a ligação. No próximo passo,
+                // vamos adicionar um loop aqui para manter a thread ativa para o jogo.
 
             } else {
                 System.out.println("Servidor: Recebido nome vazio ou nulo do cliente " + clientIp);
@@ -69,7 +101,7 @@ public class ClientHandler extends Thread {
                 }
             }
             if (this.writer != null) {
-                this.writer.close();
+                this.writer.close(); 
             }
 
             if (server != null) {
@@ -82,7 +114,7 @@ public class ClientHandler extends Thread {
             } catch (IOException e) {
                 System.err.println("Erro ao fechar o socket do cliente " + clientIp + ": " + e.getMessage());
             }
-            System.out.println("Thread para cliente " + clientIp + (playerName != null ? " ('" + playerName + "')" : "") + " terminada.");
+            System.out.println("Thread para cliente " + clientIp + (playerName != null ? " ('" + playerName + "')" : "") + " terminada (após enviar cartão, por agora).");
         }
     }
 
