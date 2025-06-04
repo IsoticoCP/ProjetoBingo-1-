@@ -91,4 +91,70 @@ public class ClientHandler extends Thread {
             writer.println(mensagem);
         }
     }
+
+    private synchronized boolean verificarLinhaH(List<Integer> cartao, List<Integer> drawnNumbers) {
+        for (int i = 0; i < 5; i++) {
+            boolean linhaCompleta = true;
+            for (int j = 0; j < 5; j++) {
+                int numero = cartao.get(i * 5 + j);
+                if (!drawnNumbers.contains(numero)) {
+                    linhaCompleta = false;
+                    break;
+                }
+            }
+            if (linhaCompleta) return true;
+        }
+        return false;
+    }
+
+    private synchronized boolean verificarLinhaV(List<Integer> cartao, List<Integer> drawnNumbers) {
+        for (int j = 0; j < 5; j++) {
+            boolean linhaCompleta = true;
+            for (int i = 0; i < 5; i++) {
+                int numero = cartao.get(i * 5 + j);
+                if (!drawnNumbers.contains(numero)) {
+                    linhaCompleta = false;
+                    break;
+                }
+            }
+            if (linhaCompleta) return true;
+        }
+        return false;
+    }
+
+    private synchronized boolean verificarLinhaD(List<Integer> cartao, List<Integer> drawnNumbers) {
+        boolean diagonal1 = true;
+        boolean diagonal2 = true;
+
+        for (int i = 0; i < 5; i++) {
+            int numero1 = cartao.get(i * 5 + i); // Diagonal principal
+            if (!drawnNumbers.contains(numero1)) {
+                diagonal1 = false;
+                break;
+            }
+        }
+        if(diagonal1) return true;
+
+        for (int i = 0; i < 5; i++) {
+            int numero = cartao.get(i * 5 + (4 - i));
+            if (!drawnNumbers.contains(numero)) {
+                diagonal2 = false;
+                break;
+            }
+        }
+        return diagonal2;
+    }
+
+    private synchronized boolean verificarBingo(List<Integer> cartao, List<Integer> drawnNumbers){
+        for (Integer numero : cartao) {
+            if (!drawnNumbers.contains(numero)) {
+                return false; // Se algum número do cartão não foi sorteado, não é Bingo
+            }
+        }
+        return true; // Se todos os números do cartão foram sorteados, é Bingo
+    }
+
+
+
+    
 }
