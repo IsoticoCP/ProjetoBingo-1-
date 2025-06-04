@@ -1,0 +1,7 @@
+public class MainPrincial{
+    public static void main (String [], args){
+        BingoServer bingoserver = new BingoServer();
+        BingoClient bingoclient1 = new BingoClient();
+        BingoClient bingoclient2 = new BingoClient();
+    }
+}
